@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Catatan Lari — pantau jarak, waktu, dan pace jogging kamu</title>
+<meta name="description" content="Catat hasil jogging dan lari: jarak, durasi, dan pace otomatis, lengkap dengan statistik dan grafik perkembangan.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏃</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f6f1ea;--ink:#1d1a17;--muted:#6b635b;--card:#fffdf9;--line:#d9d0c4;--accent:#d9502b;--accent-ink:#fff;--good:#1f7a4d}
+@media (prefers-color-scheme:dark){:root{--bg:#161412;--ink:#f3ede4;--muted:#a89f93;--card:#201d1a;--line:#38332e;--accent:#ff7a52;--accent-ink:#1d1a17;--good:#58d08e}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 1rem/1.6 Barlow,system-ui,sans-serif}
+h1,h2,.num,.lbl,button,label{font-family:"Barlow Condensed","Arial Narrow",sans-serif}
+.wrap{max-width:980px;margin:0 auto;padding:0 18px 60px}
+.track{height:14px;background:repeating-linear-gradient(90deg,var(--accent) 0 36px,transparent 36px 52px);opacity:.9}
+header{padding:28px 0 8px}
+h1{font-size:clamp(2.6rem,8vw,4.6rem);line-height:.95;margin:0;font-weight:800;text-transform:uppercase;letter-spacing:.01em}
+h1 span{color:var(--accent)}
+header p{margin:10px 0 0;color:var(--muted);max-width:52ch}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin:24px 0}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.lbl{font-size:.9rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+.num{font-size:2.3rem;font-weight:800;line-height:1.1}
+.num small{font-size:1rem;color:var(--muted);font-weight:600;margin-left:3px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px;margin-bottom:20px}
+.panel h2{margin:0 0 12px;font-size:1.6rem;text-transform:uppercase;letter-spacing:.02em}
+form{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;align-items:end}
+label{display:block;font-size:.95rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:3px}
+input,select{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit}
+.dur{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+button{cursor:pointer;border:0;border-radius:8px;padding:11px 18px;font-size:1.1rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+.primary{background:var(--accent);color:var(--accent-ink)}
+.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.ghost:hover{border-color:var(--ink)}
+:focus-visible{outline:3px solid var(--good);outline-offset:2px}
+.hint{margin:10px 0 0;color:var(--muted);font-size:.92rem}
+.chartbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.chartbar select{width:auto}
+svg{width:100%;height:auto;display:block}
+.tablewrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:520px}
+th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line);font-size:.98rem}
+th{font:600 .9rem "Barlow Condensed",sans-serif;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+td.del button{padding:4px 10px;font-size:.9rem}
+.empty{text-align:center;color:var(--muted);padding:26px 8px}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+footer{color:var(--muted);font-size:.88rem;text-align:center;padding:10px}
+@media(prefers-reduced-motion:no-preference){.stat{transition:transform .15s}.stat:hover{transform:translateY(-2px)}}
+</style>
+</head>
+<body>
+<div class="track" aria-hidden="true"></div>
+<div class="wrap">
+<header>
+  <h1>Catatan <span>Lari</span></h1>
+  <p>Catat setiap lari kamu. Pace dihitung otomatis, statistik dan grafik ikut diperbarui. Data tersimpan di browser perangkatmu.</p>
+</header>
+
+<section class="stats" aria-label="Ringkasan" id="stats"></section>
+
+<section class="panel">
+  <h2>Tambah lari</h2>
+  <form id="f">
+    <div><label for="tgl">Tanggal</label><input id="tgl" type="date" required></div>
+    <div><label for="km">Jarak (km)</label><input id="km" type="number" step="0.01" min="0.1" max="500" placeholder="5.2" required></div>
+    <div><label>Durasi (menit : detik)</label>
+      <div class="dur"><input id="mnt" type="number" min="0" max="2000" placeholder="30" aria-label="Menit" required><input id="dtk" type="number" min="0" max="59" placeholder="15" aria-label="Detik" value="0"></div></div>
+    <div><label for="cat">Catatan</label><input id="cat" type="text" maxlength="60" placeholder="Pagi, taman kota"></div>
+    <button class="primary" type="submit">Simpan</button>
+  </form>
+  <p class="hint" id="pv"></p>
+</section>
+
+<section class="panel">
+  <div class="chartbar">
+    <h2 style="margin:0">Perkembangan</h2>
+    <select id="metrik" aria-label="Tampilkan grafik">
+      <option value="km">Jarak per lari</option>
+      <option value="pace">Pace per lari</option>
+    </select>
+  </div>
+  <div id="chart"></div>
+</section>
+
+<section class="panel">
+  <h2>Riwayat</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Tanggal</th><th>Jarak</th><th>Durasi</th><th>Pace</th><th>Catatan</th><th></th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table></div>
+  <div class="actions">
+    <button class="ghost" id="contoh" type="button">Isi data contoh</button>
+    <button class="ghost" id="csv" type="button">Unduh CSV</button>
+    <button class="ghost" id="hapus" type="button">Hapus semua</button>
+  </div>
+</section>
+<footer>Catatan Lari. Data hanya tersimpan di browser ini; unduh CSV untuk cadangan.</footer>
+</div>
+
+<script>
+const KEY = "catatan-lari-v1";
+const $ = id => document.getElementById(id);
+let runs = [];
+try { runs = JSON.parse(localStorage.getItem(KEY)) || []; } catch (e) { runs = []; }
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(runs)); } catch (e) {} };
+
+const pad = n => String(n).padStart(2, "0");
+const fmtPace = s => { if (!isFinite(s) || s <= 0) return "-"; const t = Math.round(s); return Math.floor(t/60) + ":" + pad(t%60); };
+const fmtDur = s => { const h = Math.floor(s/3600), m = Math.floor(s%3600/60), d = s%60; return (h ? h + ":" + pad(m) : m) + ":" + pad(d); };
+const fmtTgl = t => new Date(t + "T00:00:00").toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
+const el = (tag, txt, cls) => { const e = document.createElement(tag); if (txt != null) e.textContent = txt; if (cls) e.className = cls; return e; };
+
+function stat(label, value, unit) {
+  const d = el("div", null, "stat");
+  d.append(el("div", label, "lbl"));
+  const n = el("div", value, "num");
+  if (unit) n.append(el("small", unit));
+  d.append(n);
+  return d;
+}
+
+function renderStats() {
+  const tot = runs.reduce((a, r) => a + r.km, 0), sec = runs.reduce((a, r) => a + r.sec, 0);
+  const now = new Date(), day = (now.getDay() + 6) % 7;
+  const senin = new Date(now.getFullYear(), now.getMonth(), now.getDate() - day);
+  const minggu = runs.filter(r => new Date(r.tgl + "T00:00:00") >= senin).reduce((a, r) => a + r.km, 0);
+  const best = runs.filter(r => r.km >= 1).map(r => r.sec / r.km).sort((a, b) => a - b)[0];
+  const far = runs.reduce((a, r) => Math.max(a, r.km), 0);
+  $("stats").replaceChildren(
+    stat("Total jarak", tot.toFixed(1), "km"),
+    stat("Jumlah lari", runs.length),
+    stat("Minggu ini", minggu.toFixed(1), "km"),
+    stat("Pace rata-rata", tot ? fmtPace(sec / tot) : "-", "/km"),
+    stat("Pace terbaik", best ? fmtPace(best) : "-", "/km"),
+    stat("Terjauh", far ? far.toFixed(1) : "-", "km")
+  );
+}
+
+function renderRows() {
+  const tb = $("rows");
+  tb.replaceChildren();
+  if (!runs.length) {
+    const tr = el("tr"), td = el("td", "Belum ada catatan. Tambahkan lari pertamamu di atas.", "empty");
+    td.colSpan = 6; tr.append(td); tb.append(tr); return;
+  }
+  [...runs].sort((a, b) => b.tgl.localeCompare(a.tgl) || b.id - a.id).forEach(r => {
+    const tr = el("tr");
+    tr.append(el("td", fmtTgl(r.tgl)), el("td", r.km.toFixed(2) + " km"), el("td", fmtDur(r.sec)), el("td", fmtPace(r.sec / r.km) + " /km"), el("td", r.cat || "-"));
+    const td = el("td", null, "del"), b = el("button", "Hapus", "ghost");
+    b.type = "button"; b.setAttribute("aria-label", "Hapus lari " + fmtTgl(r.tgl));
+    b.onclick = () => { runs = runs.filter(x => x.id !== r.id); save(); render(); };
+    td.append(b); tr.append(td); tb.append(tr);
+  });
+}
+
+function renderChart() {
+  const box = $("chart"), data = [...runs].sort((a, b) => a.tgl.localeCompare(b.tgl) || a.id - b.id).slice(-12);
+  if (data.length < 2) { box.replaceChildren(el("p", "Grafik muncul setelah kamu punya minimal 2 catatan.", "empty")); return; }
+  const m = $("metrik").value, W = 600, H = 220, L = 40, B = 28, T = 14, R = 12;
+  const vals = data.map(r => m === "km" ? r.km : r.sec / r.km);
+  const lo = m === "km" ? 0 : Math.min(...vals) * 0.95, hi = Math.max(...vals) * (m === "km" ? 1.1 : 1.05);
+  const x = i => L + (W - L - R) * (data.length === 1 ? .5 : i / (data.length - 1));
+  const y = v => m === "km" ? H - B - (H - B - T) * (v - lo) / (hi - lo) : T + (H - B - T) * (v - lo) / (hi - lo); // pace: lebih cepat = lebih tinggi
+  const NS = "http://www.w3.org/2000/svg", mk = (t, a) => { const e = document.createElementNS(NS, t); for (const k in a) e.setAttribute(k, a[k]); return e; };
+  const svg = mk("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": m === "km" ? "Grafik jarak per lari" : "Grafik pace per lari" });
+  const css = getComputedStyle(document.documentElement);
+  const accent = css.getPropertyValue("--accent"), muted = css.getPropertyValue("--muted"), line = css.getPropertyValue("--line");
+  for (let g = 0; g <= 3; g++) {
+    const v = lo + (hi - lo) * g / 3, yy = m === "km" ? y(v) : y(hi - (v - lo));
+    svg.append(mk("line", { x1: L, x2: W - R, y1: yy, y2: yy, stroke: line }));
+    const t = mk("text", { x: L - 6, y: yy + 4, "text-anchor": "end", "font-size": 11, fill: muted });
+    t.textContent = m === "km" ? v.toFixed(1) : fmtPace(m === "pace" ? hi - (v - lo) : v); svg.append(t);
+  }
+  if (m === "km") {
+    const bw = Math.min(40, (W - L - R) / data.length * .6);
+    data.forEach((r, i) => { const rc = mk("rect", { x: x(i) - bw/2, y: y(r.km), width: bw, height: H - B - y(r.km), fill: accent, rx: 3 }); const tt = mk("title", {}); tt.textContent = fmtTgl(r.tgl) + ": " + r.km.toFixed(2) + " km"; rc.append(tt); svg.append(rc); });
+  } else {
+    svg.append(mk("polyline", { points: vals.map((v, i) => x(i) + "," + y(v)).join(" "), fill: "none", stroke: accent, "stroke-width": 3 }));
+    vals.forEach((v, i) => { const c = mk("circle", { cx: x(i), cy: y(v), r: 5, fill: accent }); const tt = mk("title", {}); tt.textContent = fmtTgl(data[i].tgl) + ": " + fmtPace(v) + " /km"; c.append(tt); svg.append(c); });
+  }
+  data.forEach((r, i) => { if (data.length <= 8 || i % 2 === 0) { const t = mk("text", { x: x(i), y: H - 8, "text-anchor": "middle", "font-size": 11, fill: muted }); t.textContent = new Date(r.tgl + "T00:00:00").toLocaleDateString("id-ID", { day: "numeric", month: "short" }); svg.append(t); } });
+  box.replaceChildren(svg);
+}
+
+function render() { renderStats(); renderRows(); renderChart(); }
+
+function preview() {
+  const km = parseFloat($("km").value), s = (+$("mnt").value || 0) * 60 + (+$("dtk").value || 0);
+  $("pv").textContent = km > 0 && s > 0 ? "Pace: " + fmtPace(s / km) + " /km, kecepatan " + (km / (s / 3600)).toFixed(1) + " km/jam" : "";
+}
+["km", "mnt", "dtk"].forEach(i => $(i).addEventListener("input", preview));
+
+$("f").addEventListener("submit", e => {
+  e.preventDefault();
+  const km = parseFloat($("km").value), sec = (+$("mnt").value || 0) * 60 + (+$("dtk").value || 0);
+  if (!(km > 0) || sec <= 0) return;
+  runs.push({ id: Date.now(), tgl: $("tgl").value, km, sec, cat: $("cat").value.trim() });
+  save(); e.target.reset(); $("tgl").value = new Date().toLocaleDateString("sv-SE"); $("dtk").value = 0; $("pv").textContent = ""; render();
+});
+
+$("metrik").addEventListener("change", renderChart);
+$("hapus").onclick = () => { if (runs.length && confirm("Hapus semua catatan lari?")) { runs = []; save(); render(); } };
+$("contoh").onclick = () => {
+  const base = Date.now(), d = n => new Date(base - n * 864e5).toLocaleDateString("sv-SE");
+  const s = [[10, 3.2, 1140], [8, 5.0, 1650], [6, 4.1, 1330], [4, 6.0, 1920], [2, 5.2, 1620], [0, 7.0, 2150]];
+  s.forEach(([n, km, sec], i) => runs.push({ id: base + i, tgl: d(n), km, sec, cat: "Contoh" }));
+  save(); render();
+};
+$("csv").onclick = () => {
+  if (!runs.length) return;
+  const q = v => '"' + String(v).replace(/"/g, '""') + '"';
+  const rows = ["tanggal,jarak_km,durasi_detik,pace_menit_per_km,catatan", ...[...runs].sort((a, b) => a.tgl.localeCompare(b.tgl)).map(r => [r.tgl, r.km, r.sec, fmtPace(r.sec / r.km), q(r.cat)].join(","))];
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([rows.join("\n")], { type: "text/csv" }));
+  a.download = "catatan-lari.csv"; a.click(); URL.revokeObjectURL(a.href);
+};
+
+$("tgl").value = new Date().toLocaleDateString("sv-SE");
+render();
+</script>
+</body>
+</html>
